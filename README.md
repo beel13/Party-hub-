@@ -7,14 +7,15 @@ Party Hub is a single-file Flask app for running party games on a local network.
 - Would You Rather: vote A or B (optionally award points to the majority)
 - Trivia: pick the correct answer
 - Hot Seat: submit a short answer, host can award points
-- Categories: submit unique answers to score
 - Wavelength: guess the secret target from 0 to 100
-- Caption This: submit captions, then vote for a winner
+- Quick Draw: short answers, score unique entries or host-picked winners
+- Vote Battle: submit entries, then vote for a winner
+- Spyfall Lite: secret roles, find the spy
+- Mafia/Werewolf: night/day social deduction
 
 ## Requirements
 - Python 3.x
-- `flask`
-- `waitress`
+- `flask` + `waitress` to run the server
 - Optional: `openai` (prompt generation), `qrcode[pil]` (QR join code)
 
 ## Quick Start (Windows)
@@ -36,7 +37,7 @@ At startup, the server prints:
 3. Pick a mode, start a round, and wait for submissions.
 4. Reveal results to award points.
 
-Caption flow: Start Round -> players submit -> host clicks "Caption: Start Voting" -> players vote -> host reveals.
+Vote Battle flow: Start Round -> players submit -> host clicks "Start Vote Battle Voting" -> players vote -> host reveals.
 
 ## Configuration
 Set environment variables before launch:
@@ -56,7 +57,14 @@ set OPENAI_MODEL=gpt-4o-mini
 pip install openai qrcode[pil]
 ```
 
+## Testing (no Flask required)
+```powershell
+py party_server.py --test
+```
+Flask integration tests are skipped automatically when Flask is not installed.
+
 ## Troubleshooting
 - Players cannot join: confirm everyone is on the same network and share the Join URL shown in the console.
 - Host page blocked: set `HOST_LOCALONLY=false` and restart.
 - Missing package errors: reinstall dependencies with `pip install flask waitress`.
+- Server won't start and mentions Flask: activate your venv and install Flask + Waitress.
