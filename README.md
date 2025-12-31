@@ -60,6 +60,15 @@ Set environment variables before launch:
 - `OPENAI_API_KEY`: enables AI prompt generation in host settings.
 - `OPENAI_MODEL`: defaults to `gpt-4o-mini`.
 
+You can also create a `.env` file in the project root (auto-loaded on startup). Shell variables override `.env`. Copy `.env.example` to `.env` to get started.
+
+Example `.env`:
+```bash
+HOST_LOCALONLY=false
+OPENAI_API_KEY=your_key
+OPENAI_MODEL=gpt-4o-mini
+```
+
 Windows examples:
 ```powershell
 set HOST_LOCALONLY=false

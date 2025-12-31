@@ -123,6 +123,32 @@ def env_flag(name: str, default: bool) -> bool:
     return value.strip().lower() in ("1", "true", "yes", "on")
 
 
+def load_dotenv(path: str = ".env") -> None:
+    if not os.path.isfile(path):
+        return
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            for raw_line in handle:
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.lower().startswith("export "):
+                    line = line[7:].lstrip()
+                if "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                if not key:
+                    continue
+                value = value.strip()
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                    value = value[1:-1]
+                os.environ.setdefault(key, value)
+    except OSError:
+        return
+
+
+load_dotenv()
 HOST_LOCALONLY = env_flag("HOST_LOCALONLY", True)
 LOBBY_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ"
 BANNED_WORDS_MILD = {
@@ -438,6 +464,8 @@ STATE: Dict[str, Any] = {
     "prompt": "",
     "options": [],
     "correct_index": None,
+    "prompt_bags": {},
+    "prompt_last": {},
     "trivia_buzzer_phase": None,
     "trivia_buzzer_question": "",
     "trivia_buzzer_options": [],
@@ -3027,18 +3055,55 @@ def compute_trivia_buzzer_outcome(
     return outcome
 
 
-def pick_prompt_for_mode(mode: str) -> Tuple[str, List[str], Optional[int]]:
+def pool_key_for_mode(mode: str) -> str:
+    if mode in ("trivia", "trivia_buzzer", "team_trivia"):
+        return "trivia"
+    if mode == "spyfall":
+        return "spyfall"
+    return mode
+
+
+def draw_from_pool(state: Dict[str, Any], key: str, n: int) -> int:
+    if n <= 0:
+        return 0
+    prompt_bags = state.setdefault("prompt_bags", {})
+    prompt_last = state.setdefault("prompt_last", {})
+    bag = prompt_bags.get(key)
+    if not bag:
+        bag = list(range(n))
+        random.shuffle(bag)
+        last = prompt_last.get(key)
+        if n >= 2 and last is not None and bag and bag[0] == last:
+            bag[0], bag[1] = bag[1], bag[0]
+        prompt_bags[key] = bag
+    choice = bag.pop(0)
+    prompt_last[key] = choice
+    return choice
+
+
+def reset_pool(state: Dict[str, Any], key: str) -> None:
+    state.setdefault("prompt_bags", {}).pop(key, None)
+    state.setdefault("prompt_last", {}).pop(key, None)
+
+
+def pick_prompt_for_mode(mode: str, state: Dict[str, Any]) -> Tuple[str, List[str], Optional[int]]:
     if mode == "mlt":
-        prompt = random.choice(MLT_PROMPTS) if MLT_PROMPTS else "Who is most likely to plan the next party?"
+        if MLT_PROMPTS:
+            idx = draw_from_pool(state, pool_key_for_mode(mode), len(MLT_PROMPTS))
+            prompt = MLT_PROMPTS[idx]
+        else:
+            prompt = "Who is most likely to plan the next party?"
         return prompt, [], None
     if mode == "wyr":
         if WYR_PROMPTS:
-            choice = random.choice(WYR_PROMPTS)
+            idx = draw_from_pool(state, pool_key_for_mode(mode), len(WYR_PROMPTS))
+            choice = WYR_PROMPTS[idx]
             return "Would you rather...", [choice["a"], choice["b"]], None
         return "Would you rather...", ["Option A", "Option B"], None
     if mode in ("trivia", "trivia_buzzer", "team_trivia"):
         if TRIVIA_QUESTIONS:
-            question = random.choice(TRIVIA_QUESTIONS)
+            idx = draw_from_pool(state, pool_key_for_mode(mode), len(TRIVIA_QUESTIONS))
+            question = TRIVIA_QUESTIONS[idx]
         else:
             question = {
                 "question": "What color is the sky on a clear day?",
@@ -3047,19 +3112,39 @@ def pick_prompt_for_mode(mode: str) -> Tuple[str, List[str], Optional[int]]:
             }
         return question["question"], list(question["options"]), int(question["answer_index"])
     if mode == "hotseat":
-        prompt = random.choice(HOTSEAT_PROMPTS) if HOTSEAT_PROMPTS else "Hot seat: Share your hottest take."
+        if HOTSEAT_PROMPTS:
+            idx = draw_from_pool(state, pool_key_for_mode(mode), len(HOTSEAT_PROMPTS))
+            prompt = HOTSEAT_PROMPTS[idx]
+        else:
+            prompt = "Hot seat: Share your hottest take."
         return prompt, [], None
     if mode == "quickdraw":
-        prompt = random.choice(QUICKDRAW_PROMPTS) if QUICKDRAW_PROMPTS else "Name a party snack."
+        if QUICKDRAW_PROMPTS:
+            idx = draw_from_pool(state, pool_key_for_mode(mode), len(QUICKDRAW_PROMPTS))
+            prompt = QUICKDRAW_PROMPTS[idx]
+        else:
+            prompt = "Name a party snack."
         return prompt, [], None
     if mode == "wavelength":
-        prompt = random.choice(SPECTRUM_PROMPTS) if SPECTRUM_PROMPTS else "Cold <-> Hot"
+        if SPECTRUM_PROMPTS:
+            idx = draw_from_pool(state, pool_key_for_mode(mode), len(SPECTRUM_PROMPTS))
+            prompt = SPECTRUM_PROMPTS[idx]
+        else:
+            prompt = "Cold <-> Hot"
         return prompt, [], None
     if mode == "votebattle":
-        prompt = random.choice(VOTEBATTLE_PROMPTS) if VOTEBATTLE_PROMPTS else "Best excuse for being late."
+        if VOTEBATTLE_PROMPTS:
+            idx = draw_from_pool(state, pool_key_for_mode(mode), len(VOTEBATTLE_PROMPTS))
+            prompt = VOTEBATTLE_PROMPTS[idx]
+        else:
+            prompt = "Best excuse for being late."
         return prompt, [], None
     if mode == "spyfall":
-        choice = random.choice(SPYFALL_LOCATIONS) if SPYFALL_LOCATIONS else {"location": "Movie Theater"}
+        if SPYFALL_LOCATIONS:
+            idx = draw_from_pool(state, pool_key_for_mode(mode), len(SPYFALL_LOCATIONS))
+            choice = SPYFALL_LOCATIONS[idx]
+        else:
+            choice = {"location": "Movie Theater"}
         roles = choice.get("roles") or []
         return str(choice.get("location", "Movie Theater")), [str(role) for role in roles], None
     if mode == "mafia":
@@ -3071,11 +3156,11 @@ def resolve_prompt_for_mode(
     mode: str, state: Dict[str, Any]
 ) -> Tuple[Optional[str], List[str], Optional[int], Optional[int], Optional[str]]:
     if mode == "mafia":
-        prompt, options, correct_index = pick_prompt_for_mode(mode)
+        prompt, options, correct_index = pick_prompt_for_mode(mode, state)
         return prompt, options, correct_index, None, None
     prompt_mode = state.get("prompt_mode", "random")
     if prompt_mode != "manual":
-        prompt, options, correct_index = pick_prompt_for_mode(mode)
+        prompt, options, correct_index = pick_prompt_for_mode(mode, state)
         return prompt, options, correct_index, None, None
 
     prompt_text = str(state.get("manual_prompt_text", "")).strip()
@@ -3291,7 +3376,11 @@ def start_new_round_locked(mode: str) -> bool:
 
 
 def set_manual_prompt_from_random_locked(mode: str) -> None:
-    prompt, options, correct_index = pick_prompt_for_mode(mode)
+    preview_state = {
+        "prompt_bags": copy.deepcopy(STATE.get("prompt_bags", {})),
+        "prompt_last": copy.deepcopy(STATE.get("prompt_last", {})),
+    }
+    prompt, options, correct_index = pick_prompt_for_mode(mode, preview_state)
     STATE["prompt_mode"] = "manual"
     STATE["manual_prompt_text"] = prompt
     if mode == "wyr":
@@ -4279,7 +4368,7 @@ def register_routes(app: Flask) -> None:
                         return redirect(url_for("play", msg="Invalid selection."))
                     STATE.setdefault("mafia_day_votes", {})[pid] = target
                     return redirect(url_for("play"))
-            return redirect(url_for("play", msg="Voting is not active."))
+                return redirect(url_for("play", msg="Voting is not active."))
 
             if mode in ("trivia_buzzer", "team_trivia"):
                 trivia_phase = STATE.get("trivia_buzzer_phase")
@@ -4665,6 +4754,7 @@ def register_routes(app: Flask) -> None:
                 if prompts:
                     global MLT_PROMPTS
                     MLT_PROMPTS = prompts
+                    reset_pool(STATE, "mlt")
                     STATE["host_message"] = f"Generated {len(prompts)} MLT prompts."
                 else:
                     STATE["host_message"] = err or "Failed to generate prompts."
@@ -4680,6 +4770,7 @@ def register_routes(app: Flask) -> None:
                 if prompts:
                     global WYR_PROMPTS
                     WYR_PROMPTS = prompts
+                    reset_pool(STATE, "wyr")
                     STATE["host_message"] = f"Generated {len(prompts)} WYR prompts."
                 else:
                     STATE["host_message"] = err or "Failed to generate prompts."
@@ -4695,6 +4786,7 @@ def register_routes(app: Flask) -> None:
                 if questions:
                     global TRIVIA_QUESTIONS
                     TRIVIA_QUESTIONS = questions
+                    reset_pool(STATE, "trivia")
                     STATE["host_message"] = f"Generated {len(questions)} trivia questions."
                 else:
                     STATE["host_message"] = err or "Failed to generate trivia questions."
@@ -4710,6 +4802,7 @@ def register_routes(app: Flask) -> None:
                 if prompts:
                     global HOTSEAT_PROMPTS
                     HOTSEAT_PROMPTS = prompts
+                    reset_pool(STATE, "hotseat")
                     STATE["host_message"] = f"Generated {len(prompts)} hot seat prompts."
                 else:
                     STATE["host_message"] = err or "Failed to generate hot seat prompts."
@@ -4725,6 +4818,7 @@ def register_routes(app: Flask) -> None:
                 if prompts:
                     global SPECTRUM_PROMPTS
                     SPECTRUM_PROMPTS = prompts
+                    reset_pool(STATE, "wavelength")
                     STATE["host_message"] = f"Generated {len(prompts)} wavelength prompts."
                 else:
                     STATE["host_message"] = err or "Failed to generate wavelength prompts."
@@ -4740,6 +4834,7 @@ def register_routes(app: Flask) -> None:
                 if prompts:
                     global QUICKDRAW_PROMPTS
                     QUICKDRAW_PROMPTS = prompts
+                    reset_pool(STATE, "quickdraw")
                     STATE["host_message"] = f"Generated {len(prompts)} quick draw prompts."
                 else:
                     STATE["host_message"] = err or "Failed to generate quick draw prompts."
@@ -4755,6 +4850,7 @@ def register_routes(app: Flask) -> None:
                 if prompts:
                     global VOTEBATTLE_PROMPTS
                     VOTEBATTLE_PROMPTS = prompts
+                    reset_pool(STATE, "votebattle")
                     STATE["host_message"] = f"Generated {len(prompts)} vote battle prompts."
                 else:
                     STATE["host_message"] = err or "Failed to generate vote battle prompts."
@@ -5617,6 +5713,27 @@ class PartyHubTests(unittest.TestCase):
         outcome = compute_trivia_buzzer_outcome(2, "p1", "p1", 1, {"p2": 2})
         self.assertEqual(outcome.get("points"), 1)
         self.assertEqual(outcome.get("scoring_pid"), "p2")
+
+    def test_draw_from_pool_no_repeat_until_exhausted(self) -> None:
+        state: Dict[str, Any] = {}
+        draws = [draw_from_pool(state, "test", 3) for _ in range(3)]
+        self.assertEqual(len(set(draws)), 3)
+
+    def test_draw_from_pool_avoids_immediate_repeat_after_refill(self) -> None:
+        state: Dict[str, Any] = {"prompt_bags": {"test": [0]}, "prompt_last": {"test": 0}}
+        rng_state = random.getstate()
+        random.seed(123)
+        try:
+            first = draw_from_pool(state, "test", 2)
+            second = draw_from_pool(state, "test", 2)
+        finally:
+            random.setstate(rng_state)
+        self.assertEqual(first, 0)
+        self.assertNotEqual(second, 0)
+
+    def test_pool_key_for_mode_trivia_shared(self) -> None:
+        self.assertEqual(pool_key_for_mode("trivia_buzzer"), "trivia")
+        self.assertEqual(pool_key_for_mode("team_trivia"), "trivia")
 
     def test_progress_ui_labels(self) -> None:
         show, label = get_progress_ui("votebattle", "in_round", votebattle_phase="submit")
