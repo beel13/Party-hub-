@@ -66,6 +66,11 @@ MODE_LABELS = {
     "trivia": "Trivia",
     "trivia_buzzer": "Trivia Buzzer",
     "team_trivia": "Team Trivia Buzzer",
+    "team_jeopardy": "Team Jeopardy",
+    "relay_trivia": "Relay Trivia",
+    "trivia_draft": "Trivia Draft",
+    "wager_trivia": "Wager Trivia",
+    "estimation_duel": "Estimation Duel",
     "hotseat": "Hot Seat",
     "wavelength": "Wavelength",
     "quickdraw": "Quick Draw",
@@ -86,6 +91,11 @@ MODE_DESCRIPTIONS = {
     "trivia": "Answer the question. Correct gets a point.",
     "trivia_buzzer": "Buzz in first to answer and steal points.",
     "team_trivia": "Teams buzz in and answer first.",
+    "team_jeopardy": "Pick clues, buzz in, and score by team.",
+    "relay_trivia": "Captains rotate and answer for their team.",
+    "trivia_draft": "Draft questions, answer your picks, and steal.",
+    "wager_trivia": "Wager points before answering.",
+    "estimation_duel": "Closest estimate wins the duel.",
     "hotseat": "Write a short answer. Host can award a point.",
     "wavelength": "Guess the secret target on the spectrum.",
     "quickdraw": "Short answer challenge. Unique or host-picked wins.",
@@ -223,6 +233,70 @@ TRIVIA_QUESTIONS: List[Dict[str, Any]] = [
         "question": "Which element has the symbol 'O'?",
         "options": ["Gold", "Oxygen", "Osmium", "Zinc"],
         "answer_index": 1,
+    },
+]
+
+ESTIMATION_PROMPTS: List[Dict[str, Any]] = [
+    {"prompt": "Number of bones in the adult human body", "target": 206},
+    {"prompt": "Minutes in a day", "target": 1440},
+    {"prompt": "Number of keys on a standard piano", "target": 88},
+    {"prompt": "Number of letters in the English alphabet", "target": 26},
+    {"prompt": "Number of stars on the US flag", "target": 50},
+    {"prompt": "Number of UN member countries", "target": 193},
+    {"prompt": "Height of Mount Everest in meters", "target": 8848},
+    {"prompt": "Players on the field for one soccer team", "target": 11},
+]
+
+JEOPARDY_CATEGORIES: List[Dict[str, Any]] = [
+    {
+        "category": "Space",
+        "clues": [
+            {"question": "This planet is known as the Red Planet.", "answer": "Mars"},
+            {"question": "Our galaxy is called the Milky Way.", "answer": "Milky Way"},
+            {"question": "Planet with the most visible rings.", "answer": "Saturn"},
+            {"question": "The first person to walk on the Moon.", "answer": "Neil Armstrong"},
+            {"question": "The star at the center of our solar system.", "answer": "Sun"},
+        ],
+    },
+    {
+        "category": "Geography",
+        "clues": [
+            {"question": "The longest river in the world.", "answer": "Nile"},
+            {"question": "Country shaped like a boot.", "answer": "Italy"},
+            {"question": "The largest desert on Earth.", "answer": "Sahara"},
+            {"question": "Capital city of Japan.", "answer": "Tokyo"},
+            {"question": "The tallest mountain in the world.", "answer": "Everest"},
+        ],
+    },
+    {
+        "category": "Science",
+        "clues": [
+            {"question": "H2O is the chemical formula for this.", "answer": "Water"},
+            {"question": "The process plants use to make food.", "answer": "Photosynthesis"},
+            {"question": "The center of an atom.", "answer": "Nucleus"},
+            {"question": "This gas do humans breathe in.", "answer": "Oxygen"},
+            {"question": "The force that pulls objects toward Earth.", "answer": "Gravity"},
+        ],
+    },
+    {
+        "category": "Pop Culture",
+        "clues": [
+            {"question": "The movie with toys that come to life.", "answer": "Toy Story"},
+            {"question": "The wizard school in Harry Potter.", "answer": "Hogwarts"},
+            {"question": "Famous animated mouse mascot.", "answer": "Mickey Mouse"},
+            {"question": "The superhero known as the Dark Knight.", "answer": "Batman"},
+            {"question": "Band that sang 'Hey Jude'.", "answer": "The Beatles"},
+        ],
+    },
+    {
+        "category": "Sports",
+        "clues": [
+            {"question": "Sport played on ice with a puck.", "answer": "Hockey"},
+            {"question": "Number of points for a touchdown.", "answer": "6"},
+            {"question": "Country that hosts the Tour de France.", "answer": "France"},
+            {"question": "The NBA team from Los Angeles with purple and gold.", "answer": "Lakers"},
+            {"question": "Sport with rackets and a net, played in sets.", "answer": "Tennis"},
+        ],
     },
 ]
 
@@ -377,6 +451,44 @@ STATE: Dict[str, Any] = {
     "steal_attempts": {},
     "trivia_buzzer_result": None,
     "trivia_buzzer_steal_enabled": True,
+    "jeopardy_board": [],
+    "jeopardy_phase": None,
+    "jeopardy_selected": None,
+    "jeopardy_buzz_team_id": None,
+    "jeopardy_buzz_pid": None,
+    "jeopardy_answer_team_id": None,
+    "jeopardy_answer_pid": None,
+    "jeopardy_answer_text": "",
+    "jeopardy_steal_team_id": None,
+    "jeopardy_pending_steal": False,
+    "jeopardy_last_result": None,
+    "jeopardy_timer_kind": None,
+    "jeopardy_steal_enabled": True,
+    "relay_phase": None,
+    "relay_captains": {},
+    "relay_question": {},
+    "relay_answers": {},
+    "draft_phase": None,
+    "draft_pool": [],
+    "draft_turn_order": [],
+    "draft_turn_idx": 0,
+    "draft_pick_team_id": None,
+    "draft_picks": {},
+    "draft_answer_order": [],
+    "draft_answer_idx": 0,
+    "draft_active_team_id": None,
+    "draft_answer_choice": None,
+    "draft_answer_pid": None,
+    "draft_steal_choices": {},
+    "draft_results": [],
+    "wager_phase": None,
+    "wager_amounts": {},
+    "wager_answers": {},
+    "wager_question": {},
+    "estimate_prompt": "",
+    "estimate_target": None,
+    "estimate_phase": None,
+    "estimate_submissions": {},
     "wavelength_target": None,
     "submissions": {},
     "submissions_locked": False,
@@ -422,6 +534,10 @@ STATE: Dict[str, Any] = {
     "timer_expired": False,
     "wyr_points_majority": False,
     "quickdraw_scoring": "unique",
+    "draft_question_count": 3,
+    "estimate_price_is_right": False,
+    "wager_max": 3,
+    "wager_floor_zero": True,
     "prompt_mode": "random",
     "manual_prompt_text": "",
     "manual_wyr_a": "",
@@ -433,6 +549,7 @@ STATE: Dict[str, Any] = {
     "manual_correct_index": None,
     "manual_wavelength_target": None,
     "manual_wavelength_target_enabled": False,
+    "manual_estimate_target": None,
     "lobby_locked": False,
     "allow_renames": True,
 }
@@ -2304,6 +2421,15 @@ PROGRESS_ACTION_LABELS = {
     "mafia_end_game": "End Mafia Game",
     "buzzer_start_answer": "Start Answer",
     "buzzer_resolve_answer": "Resolve Answer",
+    "jeopardy_start_answer": "Start Answer",
+    "jeopardy_back_to_board": "Back to Board",
+    "relay_reveal": "Lock Answers / Reveal",
+    "draft_start_answers": "Start Answers",
+    "draft_resolve_answer": "Resolve / Next Team",
+    "draft_resolve_steal": "Resolve Steal",
+    "wager_start_question": "Start Question",
+    "wager_reveal": "Reveal / Score",
+    "estimate_reveal": "Reveal Results",
     "reveal": "Reveal Results",
 }
 
@@ -2315,6 +2441,11 @@ def resolve_progress_action(
     spyfall_phase: Optional[str] = None,
     mafia_phase: Optional[str] = None,
     trivia_buzzer_phase: Optional[str] = None,
+    jeopardy_phase: Optional[str] = None,
+    relay_phase: Optional[str] = None,
+    draft_phase: Optional[str] = None,
+    wager_phase: Optional[str] = None,
+    estimate_phase: Optional[str] = None,
 ) -> Optional[str]:
     if mode == "votebattle":
         if phase == "in_round" and votebattle_phase == "submit":
@@ -2346,6 +2477,40 @@ def resolve_progress_action(
         if trivia_buzzer_phase == "steal":
             return "reveal"
         return None
+    if mode == "team_jeopardy":
+        if phase != "in_round":
+            return None
+        if jeopardy_phase == "clue":
+            return "jeopardy_start_answer"
+        if jeopardy_phase == "reveal":
+            return "jeopardy_back_to_board"
+        return None
+    if mode == "relay_trivia":
+        if phase == "in_round" and relay_phase == "question":
+            return "relay_reveal"
+        return None
+    if mode == "trivia_draft":
+        if phase != "in_round":
+            return None
+        if draft_phase == "draft":
+            return "draft_start_answers"
+        if draft_phase == "answer":
+            return "draft_resolve_answer"
+        if draft_phase == "steal":
+            return "draft_resolve_steal"
+        return None
+    if mode == "wager_trivia":
+        if phase != "in_round":
+            return None
+        if wager_phase == "wager":
+            return "wager_start_question"
+        if wager_phase == "question":
+            return "wager_reveal"
+        return None
+    if mode == "estimation_duel":
+        if phase == "in_round" and estimate_phase == "submit":
+            return "estimate_reveal"
+        return None
     if phase == "in_round":
         return "reveal"
     return None
@@ -2358,8 +2523,24 @@ def get_progress_ui(
     spyfall_phase: Optional[str] = None,
     mafia_phase: Optional[str] = None,
     trivia_buzzer_phase: Optional[str] = None,
+    jeopardy_phase: Optional[str] = None,
+    relay_phase: Optional[str] = None,
+    draft_phase: Optional[str] = None,
+    wager_phase: Optional[str] = None,
+    estimate_phase: Optional[str] = None,
 ) -> Tuple[bool, str]:
-    if mode not in ("votebattle", "spyfall", "mafia", "trivia_buzzer", "team_trivia"):
+    if mode not in (
+        "votebattle",
+        "spyfall",
+        "mafia",
+        "trivia_buzzer",
+        "team_trivia",
+        "team_jeopardy",
+        "relay_trivia",
+        "trivia_draft",
+        "wager_trivia",
+        "estimation_duel",
+    ):
         return False, ""
     action = resolve_progress_action(
         mode,
@@ -2368,6 +2549,11 @@ def get_progress_ui(
         spyfall_phase,
         mafia_phase,
         trivia_buzzer_phase,
+        jeopardy_phase,
+        relay_phase,
+        draft_phase,
+        wager_phase,
+        estimate_phase,
     )
     if not action:
         return False, ""
@@ -2554,6 +2740,240 @@ def get_team_label(state: Dict[str, Any], pid: str) -> Optional[str]:
         return None
     return state.get("team_names", {}).get(team_id, f"Team {team_id}")
 
+
+def get_team_name(state: Dict[str, Any], team_id: Optional[int]) -> str:
+    if not team_id:
+        return "Team"
+    return state.get("team_names", {}).get(team_id, f"Team {team_id}")
+
+
+def get_active_team_ids(state: Dict[str, Any]) -> List[int]:
+    if not state.get("teams_enabled"):
+        return []
+    players = state.get("players", {})
+    team_map = state.get("teams", {})
+    seen: List[int] = []
+    for pid in players:
+        team_id = team_map.get(pid)
+        if team_id and team_id not in seen:
+            seen.append(team_id)
+    seen.sort()
+    return seen
+
+
+def get_team_members(state: Dict[str, Any], team_id: int) -> List[str]:
+    players = state.get("players", {})
+    members = [pid for pid, tid in state.get("teams", {}).items() if tid == team_id and pid in players]
+    members.sort(key=lambda pid: players.get(pid, {}).get("name", "").lower())
+    return members
+
+
+def apply_score_delta(state: Dict[str, Any], pid: str, delta: int, *, floor_zero: bool = False) -> None:
+    if pid not in state.get("players", {}):
+        return
+    current = state.get("scores", {}).get(pid, 0)
+    updated = current + delta
+    if floor_zero:
+        updated = max(0, updated)
+    state.setdefault("scores", {})[pid] = updated
+
+
+def apply_team_score_delta(
+    state: Dict[str, Any], team_id: Optional[int], delta: int, *, floor_zero: bool = False
+) -> List[str]:
+    if team_id is None:
+        return []
+    members = get_team_members(state, team_id)
+    for pid in members:
+        apply_score_delta(state, pid, delta, floor_zero=floor_zero)
+    return members
+
+
+def normalize_jeopardy_answer(text: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9 ]", " ", text.lower())
+    cleaned = " ".join(cleaned.split())
+    for prefix in ("a ", "an ", "the "):
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix) :].strip()
+            break
+    return cleaned
+
+
+def jeopardy_answer_matches(guess: str, answer: str) -> bool:
+    return normalize_jeopardy_answer(guess) == normalize_jeopardy_answer(answer)
+
+
+def build_jeopardy_board() -> List[Dict[str, Any]]:
+    categories = JEOPARDY_CATEGORIES[:]
+    random.shuffle(categories)
+    board = []
+    for category in categories:
+        clues = []
+        for idx, clue in enumerate(category.get("clues", [])):
+            clues.append(
+                {
+                    "value": (idx + 1) * 100,
+                    "question": str(clue.get("question", "")),
+                    "answer": str(clue.get("answer", "")),
+                    "used": False,
+                }
+            )
+        board.append({"category": str(category.get("category", "Category")), "clues": clues})
+    return board
+
+
+def get_jeopardy_clue(state: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    selected = state.get("jeopardy_selected")
+    board = state.get("jeopardy_board", [])
+    if not selected:
+        return None
+    cat_idx = selected.get("cat_idx")
+    clue_idx = selected.get("clue_idx")
+    if not isinstance(cat_idx, int) or not isinstance(clue_idx, int):
+        return None
+    if cat_idx < 0 or clue_idx < 0:
+        return None
+    if cat_idx >= len(board):
+        return None
+    clues = board[cat_idx].get("clues", [])
+    if clue_idx >= len(clues):
+        return None
+    return clues[clue_idx]
+
+
+def mark_jeopardy_selected_used(state: Dict[str, Any]) -> None:
+    clue = get_jeopardy_clue(state)
+    if clue is not None:
+        clue["used"] = True
+
+
+def next_captain_for_team(state: Dict[str, Any], team_id: int, current_pid: Optional[str]) -> Optional[str]:
+    members = get_team_members(state, team_id)
+    if not members:
+        return None
+    if current_pid in members:
+        idx = members.index(current_pid)
+        return members[(idx + 1) % len(members)]
+    return members[0]
+
+
+def rotate_relay_captains(state: Dict[str, Any]) -> Dict[int, str]:
+    captains = {}
+    previous = state.get("relay_captains", {})
+    for team_id in get_active_team_ids(state):
+        captains[team_id] = next_captain_for_team(state, team_id, previous.get(team_id))
+    state["relay_captains"] = captains
+    return captains
+
+
+def build_trivia_pool(
+    count: int, *, manual_question: Optional[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
+    pool: List[Dict[str, Any]] = []
+    used_questions = set()
+    if manual_question:
+        pool.append(manual_question)
+        used_questions.add(manual_question.get("question", "").strip().lower())
+    questions = TRIVIA_QUESTIONS[:]
+    random.shuffle(questions)
+    for question in questions:
+        if len(pool) >= count:
+            break
+        text = str(question.get("question", "")).strip().lower()
+        if not text or text in used_questions:
+            continue
+        pool.append(
+            {
+                "question": str(question.get("question", "")),
+                "options": list(question.get("options", [])),
+                "correct_index": int(question.get("answer_index", 0)),
+            }
+        )
+        used_questions.add(text)
+    if not pool:
+        pool.append(
+            {
+                "question": "What color is the sky on a clear day?",
+                "options": ["Green", "Blue", "Red", "Yellow"],
+                "correct_index": 1,
+            }
+        )
+    return pool[: max(1, count)]
+
+
+def get_draft_question(state: Dict[str, Any], team_id: Optional[int]) -> Optional[Dict[str, Any]]:
+    if team_id is None:
+        return None
+    picks = state.get("draft_picks", {})
+    pool = state.get("draft_pool", [])
+    idx = picks.get(team_id)
+    if isinstance(idx, int) and 0 <= idx < len(pool):
+        return pool[idx]
+    return None
+
+
+def record_draft_pick(state: Dict[str, Any], team_id: int, question_idx: int) -> bool:
+    pool = state.get("draft_pool", [])
+    if question_idx < 0 or question_idx >= len(pool):
+        return False
+    picks = state.setdefault("draft_picks", {})
+    if team_id in picks:
+        return False
+    if question_idx in picks.values():
+        return False
+    picks[team_id] = question_idx
+    advance_draft_pick_team(state)
+    return True
+
+
+def advance_draft_pick_team(state: Dict[str, Any]) -> None:
+    order = state.get("draft_turn_order", [])
+    picks = state.get("draft_picks", {})
+    pool = state.get("draft_pool", [])
+    if len(picks) >= len(pool):
+        state["draft_pick_team_id"] = None
+        return
+    idx = int(state.get("draft_turn_idx", 0))
+    idx += 1
+    while idx < len(order) and order[idx] in picks:
+        idx += 1
+    state["draft_turn_idx"] = idx
+    state["draft_pick_team_id"] = order[idx] if idx < len(order) else None
+
+
+def pick_first_correct_team(
+    choices: Dict[int, int], correct_index: Optional[int]
+) -> Optional[int]:
+    if correct_index is None:
+        return None
+    for team_id, choice in choices.items():
+        if choice == correct_index:
+            return team_id
+    return None
+
+
+def resolve_estimation_winners(
+    submissions: Dict[Any, Any], target: Optional[int], price_is_right: bool
+) -> Tuple[List[Any], List[Dict[str, Any]]]:
+    guesses: List[Dict[str, Any]] = []
+    if target is None:
+        return [], guesses
+    for key, value in submissions.items():
+        try:
+            guess = int(value)
+        except (TypeError, ValueError):
+            continue
+        guesses.append({"key": key, "guess": guess, "distance": abs(guess - target), "over": guess > target})
+    if not guesses:
+        return [], guesses
+    eligible = guesses
+    if price_is_right:
+        eligible = [row for row in guesses if not row["over"]]
+        if not eligible:
+            eligible = guesses
+    closest = min(row["distance"] for row in eligible)
+    winners = [row["key"] for row in eligible if row["distance"] == closest]
+    return winners, guesses
 
 def select_buzz_winner(
     existing_pid: Optional[str],
