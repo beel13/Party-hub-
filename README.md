@@ -1,11 +1,18 @@
 # Party Hub
 
-Party Hub is a single-file Flask app for running party games on a local network. Host on a laptop, players join from their phones, and the host controls rounds from a dashboard.
+Party Hub is a single-file Flask app for running party games on a local network. Host on a laptop, players join from their phones, and the host controls rounds, timers, and scoring from a dashboard.
 
 ## Game Modes
 - Most Likely To: vote for a player who fits the prompt
 - Would You Rather: vote A or B (optionally award points to the majority)
 - Trivia: pick the correct answer
+- Trivia Buzzer: buzz in first, answer, and allow steals
+- Team Trivia Buzzer: teams buzz in and answer first
+- Team Jeopardy: pick clues, buzz in, and score by team
+- Relay Trivia: captains rotate and answer for their team
+- Trivia Draft: draft questions, answer your picks, and steal
+- Wager Trivia: wager points before answering
+- Estimation Duel: closest estimate wins the duel
 - Hot Seat: submit a short answer, host can award points
 - Wavelength: guess the secret target from 0 to 100
 - Quick Draw: short answers, score unique entries or host-picked winners
@@ -30,19 +37,27 @@ At startup, the server prints:
 - Join URL (share with players)
 - Host URL (open on the host laptop)
 - Host key (embedded in the host URL)
+- Lobby code (players enter this to join)
 
 ## How To Play
-1. Start the server and share the Join URL with players.
+1. Start the server and share the Join URL plus lobby code with players.
 2. Open the Host URL on the host laptop (local access only by default).
-3. Pick a mode, start a round, and wait for submissions.
+3. Pick a mode, start a round, and wait for submissions or buzzes.
 4. Reveal results to award points.
 
 Vote Battle flow: Start Round -> players submit -> host clicks "Start Vote Battle Voting" -> players vote -> host reveals.
 
+## Host Controls
+- Lobby code on/off, lobby lock, and reclaim requests for name conflicts
+- Teams (2 to 4) with custom names and randomize option
+- Timers for rounds and votes, auto-advance, and late-submit policy
+- Profanity filter (off, mild, strict)
+- Download a JSON recap from the host dashboard
+
 ## Configuration
 Set environment variables before launch:
 - `HOST_LOCALONLY`: `true` (default) restricts the host page to localhost. Set to `false` to allow LAN access.
-- `OPENAI_API_KEY`: enables AI prompt generation.
+- `OPENAI_API_KEY`: enables AI prompt generation in host settings.
 - `OPENAI_MODEL`: defaults to `gpt-4o-mini`.
 
 Windows examples:
@@ -60,11 +75,13 @@ pip install openai qrcode[pil]
 ## Testing (no Flask required)
 ```powershell
 py party_server.py --test
+py -m unittest party_server
 ```
 Flask integration tests are skipped automatically when Flask is not installed.
 
 ## Troubleshooting
 - Players cannot join: confirm everyone is on the same network and share the Join URL shown in the console.
+- Players asked for a lobby code: copy it from the host dashboard (or disable in Host Controls).
 - Host page blocked: set `HOST_LOCALONLY=false` and restart.
 - Missing package errors: reinstall dependencies with `pip install flask waitress`.
 - Server won't start and mentions Flask: activate your venv and install Flask + Waitress.
